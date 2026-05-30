@@ -53,7 +53,7 @@ This path is Linux-specific. **Adjust it** to your local Dynare installation bef
 
 | File | Description |
 |------|-------------|
-| `Modellsimulationshauptdatei.m` | **Main entry point.** Loops over LMI parameter grids, calls Dynare for each configuration, computes cumulative fiscal multipliers, and exports the paper's figures. This is the only file a replicator needs to run directly. |
+| `main.m` | **Main entry point.** Loops over LMI parameter grids, calls Dynare for each configuration, computes cumulative fiscal multipliers, and exports the paper's figures. This is the only file a replicator needs to run directly. |
 
 ### Steady-state solvers (called internally from Dynare `.mod` files)
 
