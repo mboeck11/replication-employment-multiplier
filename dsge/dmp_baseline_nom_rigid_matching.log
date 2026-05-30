@@ -1,0 +1,131 @@
+Starting Dynare (version 6.0).
+Calling Dynare with arguments: none
+Starting preprocessing of the model file ...
+Found 44 equation(s).
+Evaluating expressions...
+Computing static model derivatives (order 1).
+Normalizing the static model...
+Finding the optimal block decomposition of the static model...
+9 block(s) found:
+  8 recursive block(s) and 1 simultaneous block(s).
+  the largest simultaneous block has 28 equation(s)
+                                 and 28 feedback variable(s).
+Computing dynamic model derivatives (order 1).
+Normalizing the dynamic model...
+Finding the optimal block decomposition of the dynamic model...
+5 block(s) found:
+  4 recursive block(s) and 1 simultaneous block(s).
+  the largest simultaneous block has 29 equation(s)
+                                 and 26 feedback variable(s).
+Preprocessing completed.
+Preprocessing time: 0h00m00s.
+
+STEADY-STATE RESULTS:
+
+c        		 0.34326
+cR       		 0.34326
+cN       		 0
+g        		 0.516906
+y        		 0.86151
+n        		 0.850746
+R        		 1.00806
+B        		 0
+Ts       		 -0.584083
+bu       		 0.450088
+bs       		 0.0750147
+w        		 1.50029
+mpl      		 1.01265
+mrs      		 0.708857
+Lambda   		 0.992
+lambda   		 0.816519
+un       		 -0.578748
+v        		 0.0641791
+u        		 0.149254
+p        		 0.3
+q        		 0.697674
+theta    		 0.43
+m        		 0.0447761
+Fn       		 9.08893
+Hn       		 0.961006
+S        		 10.0499
+Ft       		 0.0206186
+at       		 0.782754
+At       		 1.01265
+rhot     		 0.05
+mc       		 2
+pi       		 0
+i        		 1.00806
+kg       		 10.3381
+yn       		 1.01265
+ls       		 1.48155
+tfp      		 1
+clog     		 -1.06927
+wlog     		 0.405661
+ylog     		 -0.149069
+thetalog 		 -0.84397
+nlog     		 -0.161641
+glog     		 -0.659894
+ulog     		 -1.90211
+
+MODEL SUMMARY
+
+  Number of variables:         44
+  Number of stochastic shocks: 1
+  Number of state variables:   11
+  Number of jumpers:           9
+  Number of static variables:  25
+
+
+MATRIX OF COVARIANCE OF EXOGENOUS SHOCKS
+Variables          vg
+vg           1.000000
+
+POLICY AND TRANSITION FUNCTIONS
+                                glog            ylog            nlog            wlog               w
+Constant                   -0.659894       -0.149069       -0.161641        0.405661        1.500294
+g(-1)                       1.837858        0.267942        0.346638        0.187205        0.280862
+n(-1)                              0        0.198829       -0.070744       -0.116677       -0.175050
+w(-1)                              0       -0.006251       -0.008087        0.160679        0.241066
+v(-1)                              0        0.138718       -0.049356       -0.081403       -0.122128
+q(-1)                              0        0.012761       -0.004540       -0.007488       -0.011235
+i(-1)                              0       -0.133358       -0.172526       -0.710041       -1.065270
+tfp(-1)                            0        0.780114       -0.219782        0.221357        0.332101
+pi(-1)                             0       -0.203371       -0.263102       -1.123935       -1.686233
+vg                          1.934588        0.282044        0.364882        0.197058        0.295645
+
+
+THEORETICAL MOMENTS
+VARIABLE         MEAN  STD. DEV.   VARIANCE
+glog          -0.6599     6.1956    38.3859
+ylog          -0.1491     1.5360     2.3592
+nlog          -0.1616     1.6620     2.7621
+wlog           0.4057     4.1399    17.1388
+w              1.5003     6.2111    38.5774
+
+
+
+MATRIX OF CORRELATIONS
+Variables      glog    ylog    nlog    wlog       w
+glog         1.0000  0.9898  0.9945  0.9510  0.9510
+ylog         0.9898  1.0000  0.9993  0.9846  0.9846
+nlog         0.9945  0.9993  1.0000  0.9776  0.9776
+wlog         0.9510  0.9846  0.9776  1.0000  1.0000
+w            0.9510  0.9846  0.9776  1.0000  1.0000
+
+
+
+COEFFICIENTS OF AUTOCORRELATION
+Order          1       2       3       4       5
+glog      0.9500  0.9025  0.8574  0.8145  0.7738
+ylog      0.9791  0.9409  0.8973  0.8532  0.8106
+nlog      0.9737  0.9345  0.8905  0.8465  0.8041
+wlog      0.9873  0.9552  0.9140  0.8703  0.8272
+w         0.9873  0.9552  0.9140  0.8703  0.8272
+[Warning: Initial point was out of bounds, corrected] 
+[> In <a href="matlab:matlab.lang.internal.introspective.errorDocCallback('cmaes', '/Applications/Dynare/6.0-arm64/matlab/optimization/cmaes.m', 581)" style="font-weight:bold">cmaes</a> (<a href="matlab: opentoline('/Applications/Dynare/6.0-arm64/matlab/optimization/cmaes.m',581,0)">line 581</a>)
+In <a href="matlab:matlab.lang.internal.introspective.errorDocCallback('dmp_baseline_nom_rigid_matching.driver', '/Users/mboeck/Library/CloudStorage/Dropbox/Projects/!employment_multiplier/replication-files/DSGE_Nov2024_v3/+dmp_baseline_nom_rigid_matching/driver.m', 1120)" style="font-weight:bold">dmp_baseline_nom_rigid_matching.driver</a> (<a href="matlab: opentoline('/Users/mboeck/Library/CloudStorage/Dropbox/Projects/!employment_multiplier/replication-files/DSGE_Nov2024_v3/+dmp_baseline_nom_rigid_matching/driver.m',1120,0)">line 1120</a>)
+In <a href="matlab:matlab.lang.internal.introspective.errorDocCallback('dynare', '/Applications/Dynare/6.0-arm64/matlab/dynare.m', 310)" style="font-weight:bold">dynare</a> (<a href="matlab: opentoline('/Applications/Dynare/6.0-arm64/matlab/dynare.m',310,0)">line 310</a>)] 
+  n=6: (4,9)-CMA-ES(w=[53 29 14 4]%, mu_eff=2.6) on function IRF_matching_objective
+Iterat, #Fevals:   Function Value    (median,worst) |Axis Ratio|idx:Min SD idx:Max SD
+    1 ,     10 : 1.0000007745512e+07 +(3e-01,2e+00) | 2.93e+01 |  1:4.2e-02  5:1.2e+00
+    2 ,     19 : 1.0000007877905e+07 +(2e+00,5e+00) | 2.90e+01 |  1:3.7e-02  5:1.1e+00

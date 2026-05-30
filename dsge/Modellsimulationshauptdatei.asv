@@ -1,0 +1,722 @@
+% =========================================================================
+% Modellsimulationshauptdatei.m
+%
+% Replication master script for the DSGE model in:
+%   Boeck, Crespo Cuaresma, and Glocker (2026):
+%   "Labor Market Institutions, Fiscal Multipliers, and
+%    Macroeconomic Volatility"
+%
+% This script loops over a grid of labor market institution (LMI)
+% parameter values -- union density (eta), benefit replacement rate
+% (varphi), and employment protection (varsigma) -- calls Dynare for each
+% configuration, computes cumulative fiscal multipliers, and exports the
+% figures reported in the paper.
+%
+% To reduce computation time, the script uses a coarser parameter grid
+% (iter = 7) and a shorter IRF horizon than the full simulations. The
+% resulting figures should match the qualitative patterns and economic
+% mechanisms of the paper, but not necessarily the exact quantitative
+% values.
+%
+% USAGE:
+%   Run this file from the folder containing all replication files.
+%   Adjust the Dynare path (line below) to your local installation.
+%
+% OUTPUT:
+%   Figure_2.pdf    -- fiscal multipliers: baseline model (Section 3)
+%   Figure_B1.pdf   -- robustness: price inflation indexation (App. B)
+%   Figure_B2.pdf   -- robustness: sticky real wages (App. B)
+%   Figure_B3.pdf   -- robustness: non-Ricardian households (App. B)
+%   Figure_B4.pdf   -- robustness: firing costs as gov. revenue (App. B)
+%   Figure_B5.pdf   -- robustness: gov. spending in production (App. B)
+%   Figure_B6.pdf   -- robustness: separable consumption/leisure (App. B)
+%
+% DEPENDENCIES:
+%   console_baseline.m, Atfct.m, Ftfct.m
+%   dmp_baseline_nom_rigid.mod (plus extensions)
+%   MATLAB Symbolic Math Toolbox, Statistics and ML Toolbox
+%   Dynare 4.x or later
+% =========================================================================
+clear all; close all; clc;
+warning('off','all');
+
+oldpath = path; 
+path(oldpath,'/usr/lib/dynare/matlab');
+
+% some parameters for the figures
+    fx      = 100;   % Screen position
+    fy      = 100;   % Screen position
+    fwidth  = 900;   % Width of figure
+    fheight = 700;   % Height of figure (in pixels)
+
+%% ========================================================================
+%   calibration
+%  ========================================================================
+% for simulation
+xp=[0.10, 0.70; ...     %  1 eta          0.20, 0.90;
+    0.30, 0.60; ...     %  2 varphi       0.00, 0.60;
+    0.05, 0.60; ...     %  3 varsigma     0.00, 0.20;
+    0.00, 0.00; ...     %  4 tau = 0.00 
+    0.992, 0.9976; ...  %  5 betta = 0.992; discount factor
+    0.0,  1.0; ...      %  6 [not used] alpha=1.0; elasticity of production wrt labor
+    0.60, 0.0; ...      %  7 gshare: share of public spending in ss | 0.3
+    01.0, 10.0; ...     %  8 tfp=10/7.8164; TFP in SS
+    0.95, 0.85; ...     %  9 gov spending shock smoothing
+    0.20, 0.30;         % 10 sigma=0.5; complementarity parameter: if 1, consumption and labor are separable
+    0.45, 0.05; ...     % 11 gamma=0.45; elasticity of matches wrt unemployment (cp. Linzert et al.)
+    0.30, 0.45; ...     % 12 p=0.30; job finding probability
+    0.43, 0.5; ...      % 13 theta=0.43; labor market tightness
+    0.70, 0.85; ...     % 14 zeta=0.7; mrs/mpl
+    0.00, 0.40; ...     % 15   EXT: rhorw=0.4; extent of real wage rigidity
+    0.03, 0.09; ...     % 16 rhob=0.03; exogenous job separation
+    0.00, 0.10; ...     % 17 mua=0.0; mean of log(a)
+    0.12, 0.20; ...     % 18 siga=0.12; std of log(a)
+    0.05, 0.15; ...     % 19 rhotilde=0.05; steady state job destruction rate (endo+exo) [should be <=0.07]
+    0.77, 0.95; ...     % 20 Calvo price adjustment rigidity (theta) 0.9091
+    1.50, 3.00; ...     % 21 Taylor rule parameter for inflation
+    0.50, 0.90; ...     % 22 Taylor rule parameter for output
+    0.30, 0.98; ...     % 23 rho_i: interest rate smoothing
+    0.00, 0.30; ...     % 24 EXT: share of non-Ric (xi)
+    0.00, 0.90; ...     % 25 EXT: of habit formation (hb)
+    0.40, 0.00; ...     % 26 EXT: extent of inflation indexation of prices (gammaP)
+    0.00, 1.00; ...     % 27 EXT: FCBC:  if =1 then firing costs are revenues in gov. budget constraint
+    0.00, 0.30; ...     % 28 EXT: alphaG: elasticity of public capital stock in production function
+    ];
+
+shock=[1,0,0,0,0,0,0];  % G, A, MP, betta, m, eta, kap, atil;
+
+%% ========================================================================
+%   Simulation: simple IRFs
+%  ========================================================================
+
+for j=1:3 % size(xp,1) | first three parameters only
+    x_=xp(:,1);
+    for i=1:size(xp,2)
+        x_(j)=xp(j,i);
+          dynare dmp_baseline_nom_rigid.mod; clc
+        % dynare dmp_baseline_rw_rigid.mod; clc
+        % dynare dmp_baseline_FirCos_in_GBC.mod; clc
+        % dynare dmp_baseline_all_frictions.mod; clc
+        % dynare dmp_baseline_nrh.mod; clc
+        % dynare dmp_baseline_G_in_PF.mod; clc
+        % dynare dmp_baseline_5_shocks.mod; clc
+        irf(:,:,i,j)=cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg', oo_.irfs.pi_vg');
+        y_var(:,i,j)=diag(oo_.var);
+    end
+end
+names = char('gdp ($\hat{y}_t$)','emp ($\hat{n}_t$)','unemp ($\hat{u}_{t}$)','rwage ($\hat{w}_{t}$)', ...
+        'cons ($\hat{c}_{t}$)','gov exp $\hat{g}_{t}$','vu ($\hat{\theta}_t$)', '$S_t$', 'unemp ($\hat{u}_{t}$)','infl ($\pi_t$)');
+param = char('UD ($\eta$)','BRR ($\varphi$)','EPL ($\varsigma$)','TW ($\tau$)');
+
+for j=1:3
+figure('Name',param(j,:));
+idx = 0;
+for v=1:size(irf,2)
+    idx = idx+1;
+    subplot(4,4,idx);
+    plot(irf(:,v,1,j),'k-'); hold on;
+    plot(irf(:,v,2,j),'g-');
+    title(names(v,:), 'FontWeight','bold','Interpreter','latex','FontSize',12);
+    grid on;
+    if v==3 % size(irf,2)
+        legend({[param(j,:),'= ',num2str(xp(j,1),2)], ... 
+            [param(j,:),'= ',num2str(xp(j,2),2)]}, ...
+            'Location','SouthEast','Interpreter','latex');
+    end
+end
+end
+
+% get IRF differences
+%differenz=cat(2, irf(1:8,1,1,1)-irf(1:8,1,2,1), irf(1:8,1,1,2)-irf(1:8,1,2,2), irf(1:8,1,1,3)-irf(1:8,1,2,3)); 
+%disp('Low-High (should be positive):'); disp(differenz);
+
+% get variance ratios
+%var_rat=squeeze(y_var(:,1,:)./y_var(:,2,:)); disp('Var(x|LMI_low)/Var(x|LMI_high):'); disp(var_rat);
+
+% return % close all
+
+%% ========================================================================
+%  multipliers: Simulation and Figures
+%  ========================================================================
+clear x; iter=20; difference = NaN; idx=0; 
+
+x( 1,:) = linspace(xp(1,1),xp(1,2), iter); % eta
+x( 2,:) = linspace(xp(2,1),xp(2,2), iter); % varphi
+x( 3,:) = linspace(xp(3,1),xp(3,2), iter); % varsigma
+
+[irf_m, irf_m_nr, irf_m_wr, irf_m_fc, irf_m_nrh, irf_m_gpf, irf_m_sep, ...
+    mult, mult_nr, mult_wr, mult_fc, mult_nrh, mult_gpf, mult_sep]=deal(NaN(20,9,iter,3));
+y_var = NaN(13,iter,4);
+
+for lmi=1:3
+for i=1:iter
+
+    if lmi==1                          % for eta
+        x_=xp(:,1); x_(1,1) = x(1,i);
+    elseif lmi==2                      % for varphi
+        x_=xp(:,1); x_(2,1) = x(2,i);
+    elseif lmi==3                      % for varsigma
+        x_=xp(:,1); x_(3,1) = x(3,i);
+    end
+
+    try % baseline (always with nom. rigid.)
+        dynare dmp_baseline_nom_rigid.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % w/wo inflation indexation of prices
+        x_(26,1) = xp(26,2);
+        dynare dmp_baseline_nom_rigid.mod; 
+        x_(26,1) = xp(26,1);
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m_nr(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % sticky real wage
+        x_(15,1) = xp(15,2);
+        dynare dmp_baseline_nom_rigid.mod; 
+        x_(15,1) = xp(15,1);
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m_wr(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % Firing costs in gov budget constraint
+        x_(27,1) = xp(27,2);
+        dynare dmp_baseline_nom_rigid.mod; 
+        x_(27,1) = xp(27,1);
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m_fc(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % non-ricardian households
+        x_(24,1) = xp(24,2);
+        dynare dmp_baseline_nom_rigid.mod; 
+        x_(24,1) = xp(24,1);
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m_nrh(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % productivity enhancing government spending
+        x_(28,1) = xp(28,2);
+        dynare dmp_baseline_nom_rigid.mod; 
+        x_(28,1) = xp(28,1);
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m_gpf(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % separability in consumption and leisure (sigma=1)
+        x_(10,1) = xp(10,2);
+        dynare dmp_baseline_nom_rigid.mod; 
+        x_(10,1) = xp(10,1);
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg', oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg');
+            irf_m_sep(:,:,i,lmi)=irf_sc0;
+        end
+    catch
+    end
+    clear irf_sc0
+    try % variance of endog. variables
+        %dynare dmp_baseline_5_shocks.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==8
+            %y_var(:,i,lmi)=diag(oo_.var);
+        end
+    catch
+    end
+    clear irf_sc0
+end
+end
+
+% generate sum along the horizon of the IRFs:
+irf_m     = cumsum(irf_m,1);        % all frictions
+irf_m_nr  = cumsum(irf_m_nr,1);     % inflation indexation of prices
+irf_m_wr  = cumsum(irf_m_wr,1);     % real wage rigidities
+irf_m_fc  = cumsum(irf_m_fc,1);     % firing costs in gov budget constraint
+irf_m_nrh = cumsum(irf_m_nrh,1);    % non-ricardian households
+irf_m_gpf = cumsum(irf_m_gpf,1);    % productivity enhancing government spending
+irf_m_sep = cumsum(irf_m_sep,1);    % separability between consumption and leisure
+
+hori = char('$\mathcal{P}=1$','$\mathcal{P}\geq 2$'); % ,'$\mathcal{P}=6$'
+  iv = 3;
+
+% re-scaling (for gov. sending share in output =0.18)
+
+% generate the multipliers
+mult     = (irf_m(:,:,:,:)     ./ irf_m(:,6,:,:))     / 0.18;
+mult_nr  = (irf_m_nr(:,:,:,:)  ./ irf_m_nr(:,6,:,:))  / 0.18; 
+mult_wr  = (irf_m_wr(:,:,:,:)  ./ irf_m_wr(:,6,:,:))  / 0.18;
+mult_fc  = (irf_m_fc(:,:,:,:)  ./ irf_m_fc(:,6,:,:))  / 0.18;
+mult_nrh = (irf_m_nrh(:,:,:,:) ./ irf_m_nrh(:,6,:,:)) / 0.18;
+mult_gpf = (irf_m_gpf(:,:,:,:) ./ irf_m_gpf(:,6,:,:)) / 0.18;
+mult_sep = (irf_m_sep(:,:,:,:) ./ irf_m_sep(:,6,:,:)) / 0.18;
+
+fig=figure('Name','Figure for multipliers (baseline model): Different horizons.','Position', [fx fy fwidth-100 fheight-200]);
+v_sel = [1,2,4];
+for v=1:size(v_sel,2)
+    for p=1:iv
+        subplot(size(v_sel,2),iv,iv*(v-1)+p);
+        h1=plot(x( p,:), squeeze(mult(1,v_sel(v),:,p)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( p,:), squeeze(mult(2:20,v_sel(v),:,p)),'k:', 'LineWidth',0.5); % hold on;
+        grid on;
+        if v==1
+            title(param(p,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            ylim([0.081 0.3]/0.18);
+        elseif v==2
+            ylim([0.13 0.3]/0.18);
+        else
+            ylim([-0.12 0.8]/0.18);
+            if p==1
+                xlabel('$[\eta]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==2
+                xlabel('$[\varphi]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==3
+                xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+            end
+        end
+        if p==1
+            ylabel(names(v_sel(v),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            if v==1
+                legend([h1, h2(1,1)], hori, 'FontWeight','bold','Interpreter','latex','FontSize',8,'Location','NorthEast'); %legend('boxoff');
+            end
+            xlim([x(p,1), x(p,end)]);
+        elseif p==2
+            xlim([x(p,1), x(p,end)]);
+        else
+            xlim([x(p,1), x(p,end)]);
+        end        
+    end
+end
+
+exportgraphics(fig, '../figure2_DSGESpendingMultipliers.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+% Multipliers: with vs. without inflation indexation of prices
+fig=figure('Name','Figure for multipliers: inflation indexation','Position', [fx fy fwidth-100 fheight-200]);
+for v=1:size(v_sel,2)
+    for p=1:iv
+        subplot(size(v_sel,2),iv,iv*(v-1)+p);
+        h1=plot(x( p,:), squeeze(mult(1,v_sel(v),:,p)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( p,:), squeeze(mult(2:20,v_sel(v),:,p)),'k:', 'LineWidth',0.5); hold on;
+        h3=plot(x( p,:), squeeze(mult_nr(1,v_sel(v),:,p)),'r--', 'LineWidth',1.2); hold on;
+        h4=plot(x( p,:), squeeze(mult_nr(2:20,v_sel(v),:,p)),'r:', 'LineWidth',0.5);
+        grid on;
+        if v==1
+            title(param(p,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            ylim([0.081 0.3]/0.18);
+        elseif v==2
+            ylim([0.13 0.3]/0.18);
+        else
+            ylim([-0.12 0.8]/0.18);
+            if p==1
+                xlabel('$[\eta]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==2
+                xlabel('$[\varphi]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==3
+                xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+            end
+        end
+        if p==1
+            ylabel(names(v_sel(v),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            if v==1
+                legend([h1 h3], {'Baseline','No inflation index.'}, 'FontWeight','bold','Interpreter','latex','FontSize',8,'Location','NorthEast'); %legend('boxoff');
+            end
+            xlim([x(p,1), x(p,end)]);
+        elseif p==2
+            xlim([x(p,1), x(p,end)]);
+        else
+            xlim([x(p,1), x(p,end)]);
+        end        
+    end
+end
+exportgraphics(fig, '../figureB1_NoInflationIndexation.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+% Multipliers: flexible vs sticky real wage model
+fig=figure('Name','Figure for multipliers: sticky real wage','Position', [fx fy fwidth-100 fheight-200]);
+for v=1:size(v_sel,2)
+    for p=1:iv
+        subplot(size(v_sel,2),iv,iv*(v-1)+p);
+        h1=plot(x( p,:), squeeze(mult(1,v_sel(v),:,p)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( p,:), squeeze(mult(2:20,v_sel(v),:,p)),'k:', 'LineWidth',0.5); hold on;
+        h3=plot(x( p,:), squeeze(mult_wr(1,v_sel(v),:,p)),'r--', 'LineWidth',1.2); hold on;
+        h4=plot(x( p,:), squeeze(mult_wr(2:20,v_sel(v),:,p)),'r:', 'LineWidth',0.5);
+        grid on;
+        if v==1
+            title(param(p,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            ylim([0.081 0.45]/0.18);
+        elseif v==2
+            ylim([0.13 0.45]/0.18);
+        else
+            ylim([-0.12 0.8]/0.18);
+            if p==1
+                xlabel('$[\eta]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==2
+                xlabel('$[\varphi]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==3
+                xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+            end
+        end
+        if p==1
+            ylabel(names(v_sel(v),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            if v==1
+                legend([h1 h3], {'Baseline','Sticky real wages'}, 'FontWeight','bold','Interpreter','latex','FontSize',8,'Location','NorthEast'); %legend('boxoff');
+            end
+            xlim([x(p,1), x(p,end)]);
+        elseif p==2
+            xlim([x(p,1), x(p,end)]);
+        else
+            xlim([x(p,1), x(p,end)]);
+        end        
+    end
+end
+exportgraphics(fig, '../figureB2_RealWageRigidity.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+% Multipliers: with non-Ricardian households
+fig=figure('Name','Figure for multipliers: with non-Ricardian households/LAMP','Position', [fx fy fwidth-100 fheight-200]);
+for v=1:size(v_sel,2)
+    for p=1:iv
+        subplot(size(v_sel,2),iv,iv*(v-1)+p);
+        h1=plot(x( p,:), squeeze(mult(1,v_sel(v),:,p)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( p,:), squeeze(mult(2:20,v_sel(v),:,p)),'k:', 'LineWidth',0.5); hold on;
+        h3=plot(x( p,:), squeeze(mult_nrh(1,v_sel(v),:,p)),'r--', 'LineWidth',1.2); hold on;
+        h4=plot(x( p,:), squeeze(mult_nrh(2:20,v_sel(v),:,p)),'r:', 'LineWidth',0.5);
+        grid on;
+        if v==1
+            title(param(p,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            ylim([0.1 0.45]/0.18);
+        elseif v==2
+            ylim([0.15 0.35]/0.18);
+        else
+            ylim([-0.1 1.0]/0.18);
+            if p==1
+                xlabel('$[\eta]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==2
+                xlabel('$[\varphi]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==3
+                xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+            end
+        end
+        if p==1
+            ylabel(names(v_sel(v),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            if v==1
+                legend([h1 h3], {'Baseline','non-Ricardians'}, 'FontWeight','bold','Interpreter','latex','FontSize',8,'Location','NorthEast'); %legend('boxoff');
+            end
+            xlim([x(p,1), x(p,end)]);
+        elseif p==2
+            xlim([x(p,1), x(p,end)]);
+        else
+            xlim([x(p,1), x(p,end)]);
+        end        
+    end
+end
+exportgraphics(fig, '../figureB3_NonRicardian.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+% Multipliers: firing costs as resource costs or as revenues to the gov.
+fig=figure('Name','Figure for multipliers: firing costs -- resource costs vs. Rev to the Gov.','Position', [fx fy fwidth fheight-500]);
+for p=1:size(v_sel,2)
+    for v=3
+        subplot(1,3,p);
+        h1=plot(x( v,:), squeeze(mult(1,v_sel(p),:,3)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( v,:), squeeze(mult(2:20,v_sel(p),:,3)),'k:', 'LineWidth',0.5); hold on;
+        h3=plot(x( v,:), squeeze(mult_fc(1,v_sel(p),:,3)),'r--', 'LineWidth',1.2); hold on;
+        h4=plot(x( v,:), squeeze(mult_fc(2:20,v_sel(p),:,3)),'r:', 'LineWidth',0.5);
+        grid on; xlim([x(v,1), x(v,end)]);
+        title(param(v,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+        
+        ylabel(names(v_sel(p),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+        if p==1
+            legend([h1, h3], 'Baseline','$b_t^s\rightarrow GBC$', 'FontWeight','bold', 'Interpreter','latex','FontSize',8,'Location','NorthWest');
+        end
+        xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+    end
+end
+exportgraphics(fig, '../figureB4_FiringCostsGovernment.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+% Multipliers: with productivity enhancing government spending
+fig=figure('Name','Figure for multipliers: with productivity enhancing government spending','Position', [fx fy fwidth-100 fheight-200]);
+for v=1:size(v_sel,2)
+    for p=1:iv
+        subplot(size(v_sel,2),iv,iv*(v-1)+p);
+        h1=plot(x( p,:), squeeze(mult(1,v_sel(v),:,p)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( p,:), squeeze(mult(2:20,v_sel(v),:,p)),'k:', 'LineWidth',0.5); hold on;
+        h3=plot(x( p,:), squeeze(mult_gpf(1,v_sel(v),:,p)),'r--', 'LineWidth',1.2); hold on;
+        h4=plot(x( p,:), squeeze(mult_gpf(2:20,v_sel(v),:,p)),'r:', 'LineWidth',0.5);
+        grid on;
+        if v==1
+            title(param(p,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            ylim([0.081 0.45]/0.18);
+        elseif v==2
+            ylim([0.13 0.35]/0.18);
+        else
+            ylim([-0.12 1.2]/0.18);
+            if p==1
+                xlabel('$[\eta]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==2
+                xlabel('$[\varphi]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==3
+                xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+            end
+        end
+        if p==1
+            ylabel(names(v_sel(v),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            if v==1
+                legend([h1 h3], {'Baseline','$G_t$ in PF'}, 'FontWeight','bold','Interpreter','latex','FontSize',8,'Location','NorthEast'); %legend('boxoff');
+            end
+            xlim([x(p,1), x(p,end)]);
+        elseif p==2
+            xlim([x(p,1), x(p,end)]);
+        else
+            xlim([x(p,1), x(p,end)]);
+        end        
+    end
+end
+exportgraphics(fig, '../figureB5_ProductivityEnhancingGovSpending.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+% Multipliers: with separability between consumption and leisure
+fig=figure('Name','Figure for multipliers: separability between consumption and leisure','Position', [fx fy fwidth-100 fheight-200]);
+for v=1:size(v_sel,2)
+    for p=1:iv
+        subplot(size(v_sel,2),iv,iv*(v-1)+p);
+        h1=plot(x( p,:), squeeze(mult(1,v_sel(v),:,p)),'k-s', 'LineWidth',1.4,'MarkerSize',4); hold on;
+        h2=plot(x( p,:), squeeze(mult(2:20,v_sel(v),:,p)),'k:', 'LineWidth',0.5); hold on;
+        h3=plot(x( p,:), squeeze(mult_sep(1,v_sel(v),:,p)),'r--', 'LineWidth',1.2); hold on;
+        h4=plot(x( p,:), squeeze(mult_sep(2:20,v_sel(v),:,p)),'r:', 'LineWidth',0.5);
+        grid on;
+        if v==1
+            title(param(p,:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            ylim([0.0 0.9]/0.18);
+        elseif v==2
+            ylim([0.0 0.9]/0.18);
+        else
+            ylim([-0.2 1.6]/0.18);
+            if p==1
+                xlabel('$[\eta]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==2
+                xlabel('$[\varphi]$ -- Scale','Interpreter','latex','FontSize',10)
+            elseif p==3
+                xlabel('$[\varsigma]$ -- Scale','Interpreter','latex','FontSize',10)
+            end
+        end
+        if p==1
+            ylabel(names(v_sel(v),:), 'FontWeight','bold','Interpreter','latex','FontSize',10);
+            if v==1
+                legend([h1 h3], {'Baseline','$C$ \& $n$: separable'}, 'FontWeight','bold','Interpreter','latex','FontSize',8,'Location','NorthEast'); %legend('boxoff');
+            end
+            xlim([x(p,1), x(p,end)]);
+        elseif p==2
+            xlim([x(p,1), x(p,end)]);
+        else
+            xlim([x(p,1), x(p,end)]);
+        end        
+    end
+end
+exportgraphics(fig, '../figureB6_ConsLeisComplementarity.pdf', 'ContentType', 'vector'); 
+clear fig;
+
+%% ==========================================================================
+%   indirect inference based on irfs 
+%  ==========================================================================
+
+x_=xp(:,1); dynare dmp_baseline_nom_rigid_matching.mod;
+
+return
+
+%% ==========================================================================
+%   checking robustness of IRFs with respect to different calibrations
+%  ==========================================================================
+iter = 15;%510; 
+rand_numb = NaN(28,iter); 
+difference = NaN(20,10, iter, 4); 
+rx=rand(iter,28); 
+x_= NaN;
+
+for i=1:iter
+
+    x_(5,1)  = 0.98 + (0.9999-0.98).*rx(i,5);   % beta
+    x_(6,1)  = 0;                               % alpha
+    x_(7,1)  = 0.5 + (0.7-0.5).*rx(i,7);        % gshare
+    x_(8,1)  = 1;                               % 5 + (15-5).*rx(i,8); % tfp
+    x_(9,1)  = 0.9 + (0.98-0.9).*rx(i,9);       % rhog
+    x_(10,1) = 0.10 + (0.341-0.10).*rx(i,10);   % sigma
+    x_(11,1) = 0.35 + (0.55-0.35).*rx(i,11);    % gamma
+    x_(12,1) = 0.2 + (0.4-0.2).*rx(i,12);       % p
+    x_(13,1) = 0.65 + (0.75-0.65).*rx(i,13);    % theta
+    x_(14,1) = 0.8 + (0.98-0.8).*rx(i,14);      % zeta
+    x_(15,:) = 0.0 + (0.0-0.0).*rx(i,15);       % rhorw
+    x_(16,:) = 0.01 + (0.05-0.01).*rx(i,16);    % rhobar
+    x_(17,:) = (-0.1) + (0.1-(-0.1)).*rx(i,17); % mua
+    x_(18,:) = 0.08 + (0.16-0.08).*rx(i,18);    % siga
+    x_(19,:) = 0.03 + (0.07-0.03).*rx(i,19);    % rhotilde
+    x_(20,:) = 0.65 + (.75-0.65).*rx(i,20);     % thetaP 
+    x_(21,:) = 1.1 + (2.0-1.1).*rx(i,21);       % phi_pi
+    x_(22,:) = 0.00 + (0.2-0.00).*rx(i,22);     % phi_y
+    x_(23,:) = 0.00 + (0.6-0.00).*rx(i,23);     % rho_i
+    x_(24,:) = 0.00 + (0.0-0.00).*rx(i,24);     % xi (non-Ric)
+    x_(25,:) = 0.00;                            % habit form
+    x_(26,:) = 0.00 + (0.4-0.00).*rx(i,26);     % gammaP (infl. index.)
+    x_(27,:) = 0.00;                            % + (1-0.00).*rx(i,27); % FC in BC
+    x_(28,:) = 0.00 + (0.0-0.00).*rx(i,28);     % alphaG (G in PF)
+
+% for basline
+    x_(1:4,1) = xp(1:4,1);
+    try
+        dynare dmp_baseline_nom_rigid.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            %irf_sc0 = cat(2, ylog_vg, nlog_vg, u_vg, wlog_vg, clog_vg, glog_vg, thetalog_vg, S_vg, ulog_vg, pi_vg);
+            irf_sc0 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg',oo_.irfs.wlog_vg', oo_.irfs.clog_vg',oo_.irfs.glog_vg',oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg', oo_.irfs.pi_vg');            
+        else
+            irf_sc0 = 'NaN';
+        end
+    catch
+        irf_sc0 = 'NaN';
+    end
+
+% for eta
+    x_(1:4,1) = xp(1:4,1); x_(1) = xp(1,2);
+    try
+        dynare dmp_baseline_nom_rigid.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            %irf_sc1 = cat(2, ylog_vg, nlog_vg, u_vg, wlog_vg, clog_vg, glog_vg, thetalog_vg, S_vg, ulog_vg, pi_vg);
+            irf_sc1 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg',oo_.irfs.wlog_vg'*1, oo_.irfs.clog_vg', oo_.irfs.glog_vg',oo_.irfs.thetalog_vg'*.7, oo_.irfs.S_vg', oo_.irfs.ulog_vg', oo_.irfs.pi_vg');
+        else
+            irf_sc1 = 'NaN';
+        end
+    catch
+        irf_sc1 = 'NaN';
+    end
+
+    if all([isnumeric(irf_sc0),isnumeric(irf_sc1)]) == 1
+        difference(:,:,i,1) = irf_sc0-irf_sc1;
+    else
+    end
+    clear irf_sc1
+
+% for varphi
+    x_(1:4,1) = xp(1:4,1); x_(2) = 0.5;
+    try
+        dynare dmp_baseline_nom_rigid.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            %irf_sc1 = cat(2, ylog_vg, nlog_vg, u_vg, wlog_vg, clog_vg, glog_vg, thetalog_vg, S_vg, ulog_vg, pi_vg);
+            irf_sc1 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg',oo_.irfs.ulog_vg'*1, oo_.irfs.clog_vg', oo_.irfs.glog_vg',oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg', oo_.irfs.pi_vg');
+        else
+            irf_sc1 = 'NaN';
+        end
+    catch
+        irf_sc1 = 'NaN';
+    end
+
+    if all([isnumeric(irf_sc0),isnumeric(irf_sc1)]) == 1
+        difference(:,:,i,2) = irf_sc0-irf_sc1;
+    else
+    end
+    clear irf_sc1
+
+% for varsigma
+    x_(1:4,1) = xp(1:4,1); x_(3) = xp(3,2);
+    try
+        dynare dmp_baseline_nom_rigid.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            %irf_sc1 = cat(2, ylog_vg, nlog_vg, u_vg, wlog_vg, clog_vg, glog_vg, thetalog_vg, S_vg, ulog_vg, pi_vg);
+            irf_sc1 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg',oo_.irfs.thetalog_vg'*2, oo_.irfs.S_vg', oo_.irfs.ulog_vg', oo_.irfs.pi_vg');
+        else
+            irf_sc1 = 'NaN';
+        end
+    catch
+        irf_sc1 = 'NaN';
+    end
+
+    if all([isnumeric(irf_sc0),isnumeric(irf_sc1)]) == 1
+        difference(:,:,i,3) = irf_sc0-irf_sc1;
+    else
+    end
+    clear irf_sc1
+
+% for tau
+    x_(1:4,1) = xp(1:4,1); x_(4) = xp(4,2);
+    try
+        %dynare dmp_baseline_all_frictions.mod
+        eig = sum(abs(oo_.dr.eigval)>1);
+        if eig ==9
+            %irf_sc1 = cat(2, ylog_vg, nlog_vg, u_vg, wlog_vg, clog_vg, glog_vg, thetalog_vg, S_vg, ulog_vg, pi_vg);
+            irf_sc1 = cat(2, oo_.irfs.ylog_vg', oo_.irfs.nlog_vg', oo_.irfs.u_vg', oo_.irfs.wlog_vg', oo_.irfs.clog_vg', oo_.irfs.glog_vg',-oo_.irfs.thetalog_vg', oo_.irfs.S_vg', oo_.irfs.ulog_vg', oo_.irfs.pi_vg');
+        else
+            irf_sc1 = 'NaN';
+        end
+    catch
+        irf_sc1 = 'NaN';
+    end
+
+    if all([isnumeric(irf_sc0),isnumeric(irf_sc1)]) == 1
+        difference(:,:,i,4) = irf_sc0-irf_sc1; % irf(tau='klein') - irf(tau='groß) > 0
+    else
+    end
+    clear irf_sc1; clc
+
+    rand_numb(:,i) = x_;
+end
+
+v_sel = [1,2,7,4,10]; % [1,2,9,4,7,10];
+x_differ=difference;
+
+ho=2;
+
+% boxplots
+figure('Name','boxplots to check the IRFs #1','Position', [fx fy fwidth fheight-360]);
+subplot(1,3,1);
+boxplot(squeeze(mean(x_differ(1:ho,v_sel,:,1),1))','labels',{names(v_sel,:)}, 'Jitter', 10000);
+bp = gca;
+bp.XAxis.TickLabelInterpreter = 'latex'; set(gca,'fontsize',10); xtickangle(45);
+title({'UD $(\eta)$: irf$(\eta^{\textrm{Low}})-$irf$(\eta^{\textrm{High}})$'}, ...
+    'Interpreter','latex','FontSize',10);
+ylim([-0.2 0.2]); grid on;
+
+subplot(1,3,2);
+boxplot(squeeze(mean(x_differ(1:ho,v_sel,:,2),1))','labels',{names(v_sel,:)}, 'Jitter', 10000);
+bp = gca;
+bp.XAxis.TickLabelInterpreter = 'latex'; set(gca,'fontsize',10); xtickangle(45);
+title('BRR $(\varphi)$: irf$(\varphi^{\textrm{Low}})-$irf$(\varphi^{\textrm{High}})$', ...
+    'Interpreter','latex','FontSize',10);
+ylim([-0.2 0.2]); grid on;
+
+subplot(1,3,3);
+boxplot(squeeze(mean(x_differ(1:ho,v_sel,:,3),1))','labels',{names(v_sel,:)}, 'Jitter', 10000);
+bp = gca;
+bp.XAxis.TickLabelInterpreter = 'latex'; set(gca,'fontsize',10); xtickangle(45);
+title({'EPL $(\varsigma)$:  irf$(\varsigma^{\textrm{Low}}-$irf$(\varsigma^{\textrm{High}})$'}, ...
+    'Interpreter','latex','FontSize',10);
+ylim([-0.3 0.1]); grid on;
+
