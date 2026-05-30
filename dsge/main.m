@@ -148,6 +148,9 @@ x( 3,:) = linspace(xp(3,1),xp(3,2), iter); % varsigma
 [irf_m, irf_m_nr, irf_m_wr, irf_m_fc, irf_m_nrh, irf_m_gpf, irf_m_sep, ...
     mult, mult_nr, mult_wr, mult_fc, mult_nrh, mult_gpf, mult_sep]=deal(NaN(20,9,iter,3));
 y_var = NaN(13,iter,4);
+names = char('gdp ($\hat{y}_t$)','emp ($\hat{n}_t$)','unemp ($\hat{u}_{t}$)','rwage ($\hat{w}_{t}$)', ...
+        'cons ($\hat{c}_{t}$)','gov exp $\hat{g}_{t}$','vu ($\hat{\theta}_t$)', '$S_t$', 'unemp ($\hat{u}_{t}$)','infl ($\pi_t$)');
+param = char('UD ($\eta$)','BRR ($\varphi$)','EPL ($\varsigma$)','TW ($\tau$)');
 
 for lmi=1:3
 for i=1:iter
@@ -543,14 +546,6 @@ for v=1:size(v_sel,2)
 end
 exportgraphics(fig, '../figureB6_ConsLeisComplementarity.pdf', 'ContentType', 'vector'); 
 clear fig;
-
-return
-
-%% ==========================================================================
-%   indirect inference based on irfs 
-%  ==========================================================================
-
-x_ = xp(:,1); dynare dmp_baseline_nom_rigid_matching.mod;
 
 return
 
